@@ -1427,30 +1427,34 @@
                 await openDatabase();
                 
                 // 尝试从GitHub同步数据
-                const synced = await syncDataFromGitHub();
-                if (synced) {
-                    console.log('Data synced from GitHub');
-                } else {
-                    // 初始化默认数据
-                    const contestants = await getData('contestants', 'list');
-                    if (!contestants) {
-                        await storeData('contestants', 'list', []);
+                try {
+                    const synced = await syncDataFromGitHub();
+                    if (synced) {
+                        console.log('Data synced from GitHub');
                     }
-                    
-                    const scores = await getData('scores', 'data');
-                    if (!scores) {
-                        await storeData('scores', 'data', {});
-                    }
-                    
-                    const themes = await getData('themes', 'current');
-                    if (!themes) {
-                        await storeData('themes', 'current', '🏆 比赛排名');
-                    }
-                    
-                    const scorerScores = await getData('scorerScores', 'data');
-                    if (!scorerScores) {
-                        await storeData('scorerScores', 'data', {});
-                    }
+                } catch (syncError) {
+                    console.error('GitHub sync error during initialization:', syncError);
+                }
+                
+                // 初始化默认数据
+                const contestants = await getData('contestants', 'list');
+                if (!contestants) {
+                    await storeData('contestants', 'list', []);
+                }
+                
+                const scores = await getData('scores', 'data');
+                if (!scores) {
+                    await storeData('scores', 'data', {});
+                }
+                
+                const themes = await getData('themes', 'current');
+                if (!themes) {
+                    await storeData('themes', 'current', '🏆 比赛排名');
+                }
+                
+                const scorerScores = await getData('scorerScores', 'data');
+                if (!scorerScores) {
+                    await storeData('scorerScores', 'data', {});
                 }
             } catch (error) {
                 console.error('Initialization error:', error);
@@ -1931,7 +1935,10 @@
             penaltyElement.style.color = penalty > 0 ? 'var(--danger-color)' : 'var(--success-color)';
         }
 
-        document.getElementById('competitionTime').addEventListener('input', updateTimePenalty);
+        const competitionTimeElement = document.getElementById('competitionTime');
+        if (competitionTimeElement) {
+            competitionTimeElement.addEventListener('input', updateTimePenalty);
+        }
 
         async function confirmScore() {
             const score = parseFloat(document.getElementById('scorerScore').value);
@@ -2009,7 +2016,14 @@
                     theme = await getData('themes', 'current') || '🏆 比赛排名';
                 } catch (error) {
                     // 降级到localStorage
-                    theme = JSON.parse(localStorage.getItem('themes') || '🏆 比赛排名');
+                    const savedTheme = localStorage.getItem('themes');
+                    if (savedTheme) {
+                        try {
+                            theme = JSON.parse(savedTheme);
+                        } catch (parseError) {
+                            theme = '🏆 比赛排名';
+                        }
+                    }
                 }
                 document.getElementById('competitionTheme').value = theme;
             } catch (error) {
@@ -2064,10 +2078,20 @@
                     theme = await getData('themes', 'current') || '🏆 比赛排名';
                 } catch (error) {
                     // 降级到localStorage
-                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
-                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
-                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
-                    theme = JSON.parse(localStorage.getItem('themes') || '🏆 比赛排名');
+                    try {
+                        contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                        scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                        scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                        const savedTheme = localStorage.getItem('themes');
+                        if (savedTheme) {
+                            theme = JSON.parse(savedTheme);
+                        }
+                    } catch (parseError) {
+                        contestants = [];
+                        scores = {};
+                        scorerScores = {};
+                        theme = '🏆 比赛排名';
+                    }
                 }
                 
                 document.getElementById('leaderboardTheme').textContent = theme;
