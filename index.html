@@ -1262,6 +1262,15 @@
         // 从GitHub Issue读取数据
         async function fetchDataFromGitHub() {
             try {
+                // 检查是否在GitHub Pages环境中
+                const isGitHubPages = window.location.hostname.endsWith('github.io');
+                
+                // 如果在GitHub Pages中，暂时禁用GitHub API调用以避免CORS错误
+                if (isGitHubPages) {
+                    console.log('Running on GitHub Pages, skipping GitHub API call to avoid CORS error');
+                    return null;
+                }
+                
                 const headers = {
                     'Accept': 'application/vnd.github.v3+json'
                 };
@@ -1308,6 +1317,15 @@
         // 向GitHub Issue写入数据
         async function writeDataToGitHub(data) {
             try {
+                // 检查是否在GitHub Pages环境中
+                const isGitHubPages = window.location.hostname.endsWith('github.io');
+                
+                // 如果在GitHub Pages中，暂时禁用GitHub API调用以避免CORS错误
+                if (isGitHubPages) {
+                    console.log('Running on GitHub Pages, skipping GitHub API call to avoid CORS error');
+                    return false;
+                }
+                
                 const headers = {
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json'
