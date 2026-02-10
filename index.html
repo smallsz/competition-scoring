@@ -1,0 +1,2270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>比赛评分系统</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #4ade80;
+            --warning-color: #fbbf24;
+            --danger-color: #f87171;
+            --dark-bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, var(--dark-bg) 0%, #1e1b4b 50%, #312e81 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* 粒子背景 */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* 主容器 */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 主界面 */
+        .main-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from {
+                filter: drop-shadow(0 0 20px rgba(102, 126, 234, 0.5));
+            }
+            to {
+                filter: drop-shadow(0 0 40px rgba(102, 126, 234, 0.8));
+            }
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 50px;
+        }
+
+        .menu-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .menu-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px 30px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: all 0.5s;
+        }
+
+        .menu-card:hover::before {
+            left: 100%;
+        }
+
+        .menu-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.3);
+            border-color: var(--primary-color);
+        }
+
+        .menu-card-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .menu-card-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .menu-card-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .menu-card.judge { border-color: rgba(74, 222, 128, 0.3); }
+        .menu-card.judge:hover { border-color: var(--success-color); box-shadow: 0 20px 40px rgba(74, 222, 128, 0.3); }
+        
+        .menu-card.leaderboard { border-color: rgba(240, 147, 251, 0.3); }
+        .menu-card.leaderboard:hover { border-color: var(--accent-color); box-shadow: 0 20px 40px rgba(240, 147, 251, 0.3); }
+        
+        .menu-card.record { border-color: rgba(251, 191, 36, 0.3); }
+        .menu-card.record:hover { border-color: var(--warning-color); box-shadow: 0 20px 40px rgba(251, 191, 36, 0.3); }
+
+        /* 通用页面样式 */
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #22c55e);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color), #ef4444);
+            color: white;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 选手列表 */
+        .contestant-list {
+            display: grid;
+            gap: 15px;
+            max-height: 60vh;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .contestant-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .contestant-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .contestant-list::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        .contestant-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .contestant-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary-color);
+            transform: translateX(10px);
+        }
+
+        .contestant-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .contestant-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .contestant-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .contestant-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .contestant-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--success-color);
+        }
+
+        /* 评分面板 */
+        .scoring-panel {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .score-display {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            border-radius: 20px;
+            margin-bottom: 30px;
+        }
+
+        .current-score {
+            font-size: 5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--success-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .score-label {
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .score-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .score-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .score-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .score-btn.selected {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .score-btn.submit-btn {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, var(--success-color), #22c55e);
+            font-size: 1.2rem;
+        }
+
+        /* 名次看板 */
+        .leaderboard-container {
+            padding: 20px;
+        }
+
+        .theme-banner {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(240, 147, 251, 0.3));
+            border-radius: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.1), transparent 30%);
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .theme-title {
+            position: relative;
+            font-size: 2.5rem;
+            font-weight: bold;
+            z-index: 1;
+        }
+
+        .leaderboard-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 25px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .leaderboard-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 5px;
+            background: linear-gradient(to bottom, var(--primary-color), var(--accent-color));
+        }
+
+        .leaderboard-item:hover {
+            transform: translateX(10px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .leaderboard-item.gold::before { background: linear-gradient(to bottom, #ffd700, #ffed4a); }
+        .leaderboard-item.silver::before { background: linear-gradient(to bottom, #c0c0c0, #e8e8e8); }
+        .leaderboard-item.bronze::before { background: linear-gradient(to bottom, #cd7f32, #e8a668); }
+
+        .rank {
+            font-size: 2rem;
+            font-weight: bold;
+            width: 60px;
+            text-align: center;
+        }
+
+        .rank.gold { color: #ffd700; text-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
+        .rank.silver { color: #c0c0c0; text-shadow: 0 0 20px rgba(192, 192, 192, 0.5); }
+        .rank.bronze { color: #cd7f32; text-shadow: 0 0 20px rgba(205, 127, 50, 0.5); }
+
+        .contestant-details {
+            flex: 1;
+            padding: 0 20px;
+        }
+
+        .contestant-name-large {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .score-details {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .final-score {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--success-color);
+        }
+
+        .score-change {
+            font-size: 1rem;
+            margin-top: 5px;
+            animation: changeFlash 1s ease;
+        }
+
+        @keyframes changeFlash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 打分记录 */
+        .records-container {
+            display: grid;
+            gap: 20px;
+        }
+
+        .record-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .record-contestant {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .record-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .judge-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .judge-score-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .judge-name {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .judge-score {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .judge-score.max { color: var(--danger-color); }
+        .judge-score.min { color: var(--success-color); }
+
+        .record-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* 扫码模态框 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, var(--dark-bg), #1e1b4b);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: white;
+        }
+
+        .qr-container {
+            margin: 30px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            display: inline-block;
+        }
+
+        .qr-url {
+            word-break: break-all;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        /* 时间输入 */
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .time-input {
+            width: 100px;
+            padding: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .time-unit {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+        }
+
+        .time-penalty {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 2.5rem;
+            }
+
+            .menu-container {
+                grid-template-columns: 1fr;
+            }
+
+            .page-title {
+                font-size: 1.5rem;
+            }
+
+            .current-score {
+                font-size: 3rem;
+            }
+
+            .theme-title {
+                font-size: 1.8rem;
+            }
+
+            .score-buttons {
+                grid-template-columns: repeat(5, 1fr);
+            }
+
+            .score-btn {
+                padding: 15px;
+                font-size: 1.2rem;
+            }
+
+            .leaderboard-item {
+                flex-wrap: wrap;
+            }
+
+            .final-score {
+                width: 100%;
+                text-align: right;
+                margin-top: 10px;
+            }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 4px;
+        }
+
+        /* 动画效果 */
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-ping {
+            animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            75%, 100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        /* Toast通知 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 20px 30px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border-left: 5px solid var(--success-color);
+            transform: translateX(150%);
+            transition: transform 0.5s ease;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            border-left-color: var(--danger-color);
+        }
+
+        .toast.warning {
+            border-left-color: var(--warning-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- 粒子背景 -->
+    <div class="particles" id="particles"></div>
+
+    <!-- 主界面 -->
+    <div class="container main-screen" id="mainScreen">
+        <div class="logo">🏆 比赛评分系统</div>
+        <p class="subtitle">专业、公平、透明的评分体验</p>
+        
+        <div class="menu-container">
+            <div class="menu-card judge" onclick="showPage('judgePage')">
+                <span class="menu-card-icon">📝</span>
+                <h3 class="menu-card-title">打分通道</h3>
+                <p class="menu-card-desc">评委和计分人员入口<br>支持电脑和手机扫码</p>
+            </div>
+            
+            <div class="menu-card leaderboard" onclick="showPage('leaderboardPage')">
+                <span class="menu-card-icon">📊</span>
+                <h3 class="menu-card-title">名次看板</h3>
+                <p class="menu-card-desc">实时排名显示<br>炫酷效果展示</p>
+            </div>
+            
+            <div class="menu-card record" onclick="showPage('recordsPage')">
+                <span class="menu-card-icon">📋</span>
+                <h3 class="menu-card-title">打分记录</h3>
+                <p class="menu-card-desc">详细评分报表<br>历史记录查询</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 打分通道页面 -->
+    <div class="container page" id="judgePage">
+        <div class="page-header">
+            <h2 class="page-title">📝 打分通道</h2>
+            <div>
+                <button class="btn btn-secondary" onclick="showMainScreen()">返回主界面</button>
+                <button class="btn btn-primary" onclick="showQRCode('judge')">📱 生成二维码</button>
+            </div>
+        </div>
+
+        <!-- 角色选择 -->
+        <div class="card" id="roleSelection">
+            <h3 style="margin-bottom: 20px;">请选择您的角色</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                <button class="btn btn-primary" onclick="selectRole('judge')">
+                    👨‍⚖️ 评委入口
+                </button>
+                <button class="btn btn-success" onclick="selectRole('scorer')">
+                    ⏱️ 计分人员入口
+                </button>
+            </div>
+        </div>
+
+        <!-- 评委登录 -->
+        <div class="card" id="judgeLogin" style="display: none;">
+            <h3 style="margin-bottom: 20px;">👨‍⚖️ 评委登录</h3>
+            <div class="form-group">
+                <label class="form-label">您的姓名</label>
+                <input type="text" class="form-input" id="judgeName" placeholder="请输入您的姓名">
+            </div>
+            <button class="btn btn-primary" onclick="judgeLogin()">开始打分</button>
+            <button class="btn btn-secondary" onclick="backToRoleSelection()" style="margin-left: 10px;">返回</button>
+        </div>
+
+        <!-- 评委打分面板 -->
+        <div class="scoring-panel" id="judgeScoring" style="display: none;">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>👨‍⚖️ 评委：<span id="currentJudgeName"></span></h3>
+                    <button class="btn btn-secondary" onclick="exitJudgeMode()">退出</button>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">请选择选手</label>
+                    <div class="contestant-list" id="judgeContestantList">
+                        <!-- 选手列表将通过JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 评分详情 -->
+        <div class="scoring-panel" id="scoringDetail" style="display: none;">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>为 <span id="scoringContestantName"></span> 评分</h3>
+                    <button class="btn btn-secondary" onclick="backToContestantList()">返回</button>
+                </div>
+                
+                <div class="score-display">
+                    <div class="current-score" id="currentScore">0</div>
+                    <div class="score-label">当前分数</div>
+                </div>
+                
+                <div class="score-buttons" id="scoreButtons">
+                    <!-- 分数按钮将通过JS动态生成 -->
+                </div>
+                
+                <button class="btn btn-success score-btn" onclick="submitScore()" id="submitScoreBtn">
+                    ✅ 确认提交分数
+                </button>
+            </div>
+        </div>
+
+        <!-- 计分人员面板 -->
+        <div class="card" id="scorerPanel" style="display: none;">
+            <h3 style="margin-bottom: 20px;">⏱️ 计分人员面板</h3>
+            
+            <div class="form-group">
+                <label class="form-label">比赛主题名称</label>
+                <input type="text" class="form-input" id="competitionTheme" placeholder="请输入比赛主题名称">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="saveTheme()">💾 保存主题</button>
+            </div>
+            
+            <h4 style="margin-bottom: 15px;">选手管理</h4>
+            <div class="form-group">
+                <label class="form-label">添加选手</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" class="form-input" id="newContestantName" placeholder="选手姓名">
+                    <button class="btn btn-success" onclick="addContestant()">添加</button>
+                </div>
+            </div>
+            
+            <div class="contestant-list" id="scorerContestantList">
+                <!-- 选手列表将通过JS动态生成 -->
+            </div>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <h4 style="margin-bottom: 15px;">⚠️ 危险操作</h4>
+                <button class="btn btn-danger" onclick="clearAllData()">🗑️ 清空所有数据</button>
+            </div>
+        </div>
+
+        <!-- 分数输入模态框 -->
+        <div class="card" id="scoreInputPanel" style="display: none;">
+            <h3 style="margin-bottom: 20px;">📝 输入计分人员分数 - <span id="scoreContestantName"></span></h3>
+            
+            <div class="form-group">
+                <label class="form-label">计分人员分数（0-100）</label>
+                <div class="time-input-group">
+                    <input type="number" class="time-input" id="scorerScore" value="0" min="0" max="100" step="1">
+                    <span class="time-unit">分</span>
+                </div>
+                <p style="color: var(--text-secondary); margin-top: 10px;">
+                    计分人员分数将直接加入最终总分
+                </p>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-success" onclick="confirmScore()">✅ 确认</button>
+                <button class="btn btn-secondary" onclick="cancelScoreInput()">取消</button>
+            </div>
+        </div>
+        
+        <!-- 管理员登录面板 -->
+        <div class="container page" id="adminPage" style="display: none;">
+            <div class="page-header">
+                <h2 class="page-title">🔒 管理员登录</h2>
+                <div>
+                    <button class="btn btn-secondary" onclick="showMainScreen()">返回主界面</button>
+                </div>
+            </div>
+            
+            <div class="card" style="max-width: 500px; margin: 0 auto;">
+                <h3 style="margin-bottom: 30px; text-align: center;">系统管理员登录</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-input" id="adminUsername" placeholder="请输入管理员用户名">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">密码</label>
+                    <input type="password" class="form-input" id="adminPassword" placeholder="请输入管理员密码">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="adminLogin()">登录</button>
+                    <button class="btn btn-secondary" onclick="showMainScreen()">取消</button>
+                </div>
+                
+                <div style="margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem; text-align: center;">
+                    默认账号：admin<br>
+                    默认密码：admin123
+                </div>
+            </div>
+        </div>
+        
+        <!-- 管理员控制面板 -->
+        <div class="container page" id="adminControlPanel" style="display: none;">
+            <div class="page-header">
+                <h2 class="page-title">⚙️ 管理员控制面板</h2>
+                <div>
+                    <button class="btn btn-danger" onclick="adminLogout()">退出登录</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 style="margin-bottom: 20px;">系统初始化</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 30px;">
+                    点击下方按钮将清空所有数据，使系统恢复到初始状态。<br>
+                    <strong style="color: var(--danger-color);">此操作不可恢复，请谨慎执行！</strong>
+                </p>
+                
+                <button class="btn btn-danger" onclick="initializeSystem()">
+                    🗑️ 初始化系统
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 名次看板页面 -->
+    <div class="container page" id="leaderboardPage">
+        <div class="page-header">
+            <h2 class="page-title">📊 名次看板</h2>
+            <div>
+                <button class="btn btn-secondary" onclick="showMainScreen()">返回主界面</button>
+                <button class="btn btn-primary" onclick="toggleAutoRefresh()">
+                    <span id="refreshIcon">🔄</span> <span id="refreshText">自动刷新</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="leaderboard-container">
+            <div class="theme-banner">
+                <h1 class="theme-title" id="leaderboardTheme">🏆 比赛排名</h1>
+                <p style="margin-top: 10px; color: var(--text-secondary);">实时更新 | 公平公正</p>
+            </div>
+            
+            <div class="leaderboard-list" id="leaderboardList">
+                <!-- 排名列表将通过JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 打分记录页面 -->
+    <div class="container page" id="recordsPage">
+        <div class="page-header">
+            <h2 class="page-title">📋 打分记录</h2>
+            <div>
+                <button class="btn btn-secondary" onclick="showMainScreen()">返回主界面</button>
+                <button class="btn btn-primary" onclick="exportRecords()">📥 导出报表</button>
+            </div>
+        </div>
+
+        <div class="records-container" id="recordsList">
+            <!-- 记录列表将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <!-- 二维码模态框 -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeQRModal()">&times;</span>
+            <h3 style="margin-bottom: 20px;">📱 扫码进入</h3>
+            <p id="qrDescription" style="color: var(--text-secondary); margin-bottom: 20px;"></p>
+            <div class="qr-container">
+                <div id="qrCode"></div>
+            </div>
+            <div class="qr-url" id="qrUrl"></div>
+        </div>
+    </div>
+
+    <!-- Toast通知 -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeData();
+            createParticles();
+            updateAllDisplays();
+            loadSavedTheme();
+        });
+
+        // 创建粒子背景
+        function createParticles() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // ==================== IndexedDB 数据库 ====================
+        const DB_NAME = 'CompetitionScoringDB';
+        const DB_VERSION = 1;
+        let db = null;
+
+        // 打开数据库
+        function openDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onerror = function(event) {
+                    console.error('Database error:', event.target.error);
+                    reject(event.target.error);
+                };
+
+                request.onsuccess = function(event) {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = function(event) {
+                    const db = event.target.result;
+
+                    // 创建对象存储
+            if (!db.objectStoreNames.contains('contestants')) {
+                db.createObjectStore('contestants');
+            }
+            if (!db.objectStoreNames.contains('scores')) {
+                db.createObjectStore('scores');
+            }
+            if (!db.objectStoreNames.contains('scorerScores')) {
+                db.createObjectStore('scorerScores');
+            }
+            if (!db.objectStoreNames.contains('themes')) {
+                db.createObjectStore('themes');
+            }
+            if (!db.objectStoreNames.contains('judges')) {
+                db.createObjectStore('judges');
+            }
+                };
+            });
+        }
+
+        // 存储数据
+        function storeData(storeName, key, value) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    reject(new Error('Database not open'));
+                    return;
+                }
+
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.put(value, key);
+
+                request.onsuccess = function() {
+                    resolve();
+                };
+
+                request.onerror = function(event) {
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // 获取数据
+        function getData(storeName, key) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    reject(new Error('Database not open'));
+                    return;
+                }
+
+                const transaction = db.transaction(storeName, 'readonly');
+                const store = transaction.objectStore(storeName);
+                const request = store.get(key);
+
+                request.onsuccess = function() {
+                    resolve(request.result);
+                };
+
+                request.onerror = function(event) {
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // 删除数据
+        function deleteData(storeName, key) {
+            return new Promise((resolve, reject) => {
+                if (!db) {
+                    reject(new Error('Database not open'));
+                    return;
+                }
+
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.delete(key);
+
+                request.onsuccess = function() {
+                    resolve();
+                };
+
+                request.onerror = function(event) {
+                    reject(event.target.error);
+                };
+            });
+        }
+
+        // 初始化数据
+        async function initializeData() {
+            try {
+                await openDatabase();
+                
+                // 初始化默认数据
+                const contestants = await getData('contestants', 'list');
+                if (!contestants) {
+                    await storeData('contestants', 'list', []);
+                }
+                
+                const scores = await getData('scores', 'data');
+                if (!scores) {
+                    await storeData('scores', 'data', {});
+                }
+                
+                const themes = await getData('themes', 'current');
+                if (!themes) {
+                    await storeData('themes', 'current', '🏆 比赛排名');
+                }
+                
+                const scorerScores = await getData('scorerScores', 'data');
+                if (!scorerScores) {
+                    await storeData('scorerScores', 'data', {});
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // 降级到localStorage
+                if (!localStorage.getItem('contestants')) {
+                    localStorage.setItem('contestants', JSON.stringify([]));
+                }
+                if (!localStorage.getItem('scores')) {
+                    localStorage.setItem('scores', JSON.stringify({}));
+                }
+                if (!localStorage.getItem('themes')) {
+                    localStorage.setItem('themes', JSON.stringify('🏆 比赛排名'));
+                }
+                if (!localStorage.getItem('scorerScores')) {
+                    localStorage.setItem('scorerScores', JSON.stringify({}));
+                }
+            }
+        }
+
+        // ==================== 页面导航 ====================
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            
+            if (pageId === 'leaderboardPage') {
+                updateLeaderboard();
+            } else if (pageId === 'recordsPage') {
+                updateRecords();
+            }
+            
+            // 直接隐藏主界面
+            document.getElementById('mainScreen').style.display = 'none';
+        }
+
+        function showMainScreen() {
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            // 直接显示主界面
+            document.getElementById('mainScreen').style.display = 'flex';
+            hideAllSubPanels();
+        }
+
+        function hideAllSubPanels() {
+            document.getElementById('roleSelection').style.display = 'block';
+            document.getElementById('judgeLogin').style.display = 'none';
+            document.getElementById('judgeScoring').style.display = 'none';
+            document.getElementById('scoringDetail').style.display = 'none';
+            document.getElementById('scorerPanel').style.display = 'none';
+            document.getElementById('timeInputPanel').style.display = 'none';
+        }
+
+        // ==================== 角色选择 ====================
+        function selectRole(role) {
+            document.getElementById('roleSelection').style.display = 'none';
+            
+            if (role === 'judge') {
+                document.getElementById('judgeLogin').style.display = 'block';
+            } else {
+                document.getElementById('scorerPanel').style.display = 'block';
+                updateScorerContestantList();
+            }
+        }
+
+        function backToRoleSelection() {
+            hideAllSubPanels();
+        }
+
+        // ==================== 评委功能 ====================
+        let currentJudge = '';
+        let currentScoringContestant = '';
+        let currentScore = 0;
+
+        // 页面加载时检查是否有保存的评委信息
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedJudge = localStorage.getItem('savedJudge');
+            if (savedJudge) {
+                currentJudge = savedJudge;
+                document.getElementById('judgeName').value = savedJudge;
+                document.getElementById('currentJudgeName').textContent = savedJudge;
+                document.getElementById('judgeLogin').style.display = 'none';
+                document.getElementById('judgeScoring').style.display = 'block';
+                updateJudgeContestantList();
+                showToast('欢迎回来，' + savedJudge + '！');
+            }
+        });
+
+        function judgeLogin() {
+            const name = document.getElementById('judgeName').value.trim();
+            if (!name) {
+                showToast('请输入您的姓名', 'error');
+                return;
+            }
+            
+            currentJudge = name;
+            // 保存评委姓名到本地存储
+            localStorage.setItem('savedJudge', name);
+            document.getElementById('currentJudgeName').textContent = name;
+            document.getElementById('judgeLogin').style.display = 'none';
+            document.getElementById('judgeScoring').style.display = 'block';
+            updateJudgeContestantList();
+            showToast('登录成功，开始打分！');
+        }
+
+        function exitJudgeMode() {
+            currentJudge = '';
+            document.getElementById('judgeName').value = '';
+            // 清除保存的评委信息
+            localStorage.removeItem('savedJudge');
+            hideAllSubPanels();
+            showToast('已退出评委模式');
+        }
+
+        async function updateJudgeContestantList() {
+            try {
+                let contestants = [];
+                let scores = {};
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                }
+                
+                const list = document.getElementById('judgeContestantList');
+                list.innerHTML = '';
+                
+                if (contestants.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无选手，请等待计分人员添加</p>';
+                    return;
+                }
+                
+                contestants.forEach((contestant, index) => {
+                    const hasScored = scores[contestant] && scores[contestant][currentJudge];
+                    
+                    const item = document.createElement('div');
+                    item.className = 'contestant-item';
+                    item.innerHTML = `
+                        <div class="contestant-info">
+                            <div class="contestant-number">${index + 1}</div>
+                            <div>
+                                <div class="contestant-name">${contestant}</div>
+                                <div class="contestant-status">${hasScored ? '✅ 已打分' : '⏳ 待打分'}</div>
+                            </div>
+                        </div>
+                        ${hasScored ? '<span style="color: var(--success-color);">✓</span>' : '<span style="color: var(--text-secondary);">→</span>'}
+                    `;
+                    
+                    if (!hasScored) {
+                        item.onclick = () => startScoring(contestant);
+                    } else {
+                        item.style.opacity = '0.6';
+                        item.style.cursor = 'not-allowed';
+                    }
+                    
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Update judge list error:', error);
+                showToast('加载选手列表失败', 'error');
+            }
+        }
+
+        function startScoring(contestant) {
+            currentScoringContestant = contestant;
+            currentScore = 0;
+            document.getElementById('scoringContestantName').textContent = contestant;
+            document.getElementById('currentScore').textContent = '0';
+            
+            // 改为输入框方式
+            const scoreButtons = document.getElementById('scoreButtons');
+            scoreButtons.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px;">
+                    <div style="flex: 1;">
+                        <label class="form-label">请输入分数 (0-100)</label>
+                        <input type="number" class="form-input" id="scoreInput" min="0" max="100" step="1" placeholder="0-100">
+                    </div>
+                    <button class="btn btn-primary" onclick="updateScoreFromInput()">确认</button>
+                </div>
+                <button class="btn btn-success score-btn" onclick="submitScore()">
+                    ✅ 确认提交分数
+                </button>
+            `;
+            
+            // 添加输入框事件监听
+            const scoreInput = document.getElementById('scoreInput');
+            if (scoreInput) {
+                scoreInput.addEventListener('input', function() {
+                    const value = parseInt(this.value) || 0;
+                    if (value >= 0 && value <= 100) {
+                        currentScore = value;
+                        document.getElementById('currentScore').textContent = value;
+                    }
+                });
+            }
+            
+            document.getElementById('judgeScoring').style.display = 'none';
+            document.getElementById('scoringDetail').style.display = 'block';
+        }
+
+        function updateScoreFromInput() {
+            const scoreInput = document.getElementById('scoreInput');
+            if (scoreInput) {
+                const value = parseInt(scoreInput.value) || 0;
+                if (value >= 0 && value <= 100) {
+                    currentScore = value;
+                    document.getElementById('currentScore').textContent = value;
+                    showToast('分数已确认');
+                } else {
+                    showToast('请输入0-100之间的分数', 'error');
+                }
+            }
+        }
+
+        async function submitScore() {
+            if (currentScore === null || currentScore === undefined || currentScore === 0) {
+                const scoreInput = document.getElementById('scoreInput');
+                const inputValue = parseInt(scoreInput.value) || 0;
+                if (inputValue >= 0 && inputValue <= 100) {
+                    currentScore = inputValue;
+                } else {
+                    showToast('请输入0-100之间的分数', 'error');
+                    return;
+                }
+            }
+            
+            if (currentScore < 0 || currentScore > 100) {
+                showToast('请输入0-100之间的分数', 'error');
+                return;
+            }
+            
+            try {
+                // 重新读取最新数据
+                let scores = {};
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    scores = await getData('scores', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                }
+                
+                if (!scores[currentScoringContestant]) {
+                    scores[currentScoringContestant] = {};
+                }
+                
+                // 检查是否已经打分
+                if (scores[currentScoringContestant][currentJudge]) {
+                    showToast('您已经为该选手打分过了', 'error');
+                    return;
+                }
+                
+                scores[currentScoringContestant][currentJudge] = currentScore;
+                
+                // 保存数据
+                try {
+                    // 尝试保存到IndexedDB
+                    await storeData('scores', 'data', scores);
+                } catch (error) {
+                    // 降级到localStorage
+                    localStorage.setItem('scores', JSON.stringify(scores));
+                }
+                
+                showToast(`已为 ${currentScoringContestant} 打分：${currentScore}分`);
+                
+                document.getElementById('scoringDetail').style.display = 'none';
+                currentScoringContestant = '';
+                currentScore = 0;
+                document.getElementById('judgeScoring').style.display = 'block';
+                
+                // 强制刷新列表
+                setTimeout(() => {
+                    updateJudgeContestantList();
+                }, 100);
+            } catch (error) {
+                console.error('Submit score error:', error);
+                showToast('提交分数失败', 'error');
+            }
+        }
+
+        function backToContestantList() {
+            document.getElementById('scoringDetail').style.display = 'none';
+            currentScoringContestant = '';
+            currentScore = 0;
+            document.getElementById('judgeScoring').style.display = 'block';
+        }
+
+        // ==================== 计分人员功能 ====================
+        let selectedContestantForTime = '';
+        let autoRefreshEnabled = true;
+        let refreshInterval = null;
+
+        async function updateScorerContestantList() {
+            try {
+                let contestants = [];
+                let scores = {};
+                let scorerScores = {};
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                    scorerScores = await getData('scorerScores', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                }
+                
+                const list = document.getElementById('scorerContestantList');
+                list.innerHTML = '';
+                
+                if (contestants.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无选手，请添加选手</p>';
+                    return;
+                }
+                
+                contestants.forEach((contestant, index) => {
+                    const contestantScores = scores[contestant] || {};
+                    const judgeCount = Object.keys(contestantScores).length;
+                    const hasScorerScore = scorerScores[contestant] !== undefined;
+                    const isComplete = judgeCount === 17 && hasScorerScore;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'contestant-item';
+                    item.innerHTML = `
+                        <div class="contestant-info">
+                            <div class="contestant-number">${index + 1}</div>
+                            <div>
+                                <div class="contestant-name">${contestant}</div>
+                                <div class="contestant-status">
+                                    ${judgeCount}/17 评委打分
+                                    ${hasScorerScore ? ` | 📝 计分: ${scorerScores[contestant]}分` : ''}
+                                    ${isComplete ? ' | ✅ 完成' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            ${!hasScorerScore ? `<button class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9rem;" onclick="inputScore('${contestant}')">📝 输入分数</button>` : ''}
+                            <button class="btn btn-danger" style="padding: 8px 15px; font-size: 0.9rem; margin-left: 10px;" onclick="removeContestant('${contestant}')">删除</button>
+                        </div>
+                    `;
+                    
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Update scorer list error:', error);
+                showToast('加载选手列表失败', 'error');
+            }
+        }
+
+        async function addContestant() {
+            const name = document.getElementById('newContestantName').value.trim();
+            if (!name) {
+                showToast('请输入选手姓名', 'error');
+                return;
+            }
+            
+            try {
+                let contestants = [];
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                }
+                
+                if (contestants.includes(name)) {
+                    showToast('该选手已存在', 'error');
+                    return;
+                }
+                
+                contestants.push(name);
+                
+                try {
+                    // 尝试保存到IndexedDB
+                    await storeData('contestants', 'list', contestants);
+                } catch (error) {
+                    // 降级到localStorage
+                    localStorage.setItem('contestants', JSON.stringify(contestants));
+                }
+                
+                document.getElementById('newContestantName').value = '';
+                await updateScorerContestantList();
+                showToast(`已添加选手：${name}`);
+            } catch (error) {
+                console.error('Add contestant error:', error);
+                showToast('添加选手失败', 'error');
+            }
+        }
+
+        async function removeContestant(name) {
+            if (!confirm(`确定要删除选手 "${name}" 吗？`)) return;
+            
+            try {
+                // 删除选手
+                let contestants = [];
+                try {
+                    contestants = await getData('contestants', 'list') || [];
+                } catch (error) {
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                }
+                contestants = contestants.filter(c => c !== name);
+                try {
+                    await storeData('contestants', 'list', contestants);
+                } catch (error) {
+                    localStorage.setItem('contestants', JSON.stringify(contestants));
+                }
+                
+                // 删除分数
+                let scores = {};
+                try {
+                    scores = await getData('scores', 'data') || {};
+                } catch (error) {
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                }
+                delete scores[name];
+                try {
+                    await storeData('scores', 'data', scores);
+                } catch (error) {
+                    localStorage.setItem('scores', JSON.stringify(scores));
+                }
+                
+                // 删除计分人员分数
+                let scorerScores = {};
+                try {
+                    scorerScores = await getData('scorerScores', 'data') || {};
+                } catch (error) {
+                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                }
+                delete scorerScores[name];
+                try {
+                    await storeData('scorerScores', 'data', scorerScores);
+                } catch (error) {
+                    localStorage.setItem('scorerScores', JSON.stringify(scorerScores));
+                }
+                
+                await updateScorerContestantList();
+                showToast(`已删除选手：${name}`);
+            } catch (error) {
+                console.error('Remove contestant error:', error);
+                showToast('删除选手失败', 'error');
+            }
+        }
+
+        function inputScore(contestant) {
+            selectedContestantForScore = contestant;
+            document.getElementById('scoreContestantName').textContent = contestant;
+            document.getElementById('scorerScore').value = '0';
+            
+            document.getElementById('scorerPanel').style.display = 'none';
+            document.getElementById('scoreInputPanel').style.display = 'block';
+        }
+
+        function updateTimePenalty() {
+            const time = parseFloat(document.getElementById('competitionTime').value) || 0;
+            let penalty = 0;
+            if (time > 5) {
+                penalty = Math.ceil(time - 5) * 10;
+            }
+            
+            const penaltyElement = document.getElementById('timePenalty');
+            penaltyElement.textContent = `扣分：${penalty} 分`;
+            penaltyElement.style.color = penalty > 0 ? 'var(--danger-color)' : 'var(--success-color)';
+        }
+
+        document.getElementById('competitionTime').addEventListener('input', updateTimePenalty);
+
+        async function confirmScore() {
+            const score = parseFloat(document.getElementById('scorerScore').value);
+            if (isNaN(score) || score < 0 || score > 100) {
+                showToast('请输入有效的分数（0-100）', 'error');
+                return;
+            }
+            
+            try {
+                let scorerScores = {};
+                try {
+                    // 尝试从IndexedDB获取
+                    scorerScores = await getData('scorerScores', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                }
+                
+                scorerScores[selectedContestantForScore] = score;
+                
+                try {
+                    // 尝试保存到IndexedDB
+                    await storeData('scorerScores', 'data', scorerScores);
+                } catch (error) {
+                    // 降级到localStorage
+                    localStorage.setItem('scorerScores', JSON.stringify(scorerScores));
+                }
+                
+                showToast(`已记录分数：${score}分`);
+                
+                document.getElementById('scoreInputPanel').style.display = 'none';
+                document.getElementById('scorerPanel').style.display = 'block';
+                selectedContestantForScore = '';
+                await updateScorerContestantList();
+            } catch (error) {
+                console.error('Confirm score error:', error);
+                showToast('记录分数失败', 'error');
+            }
+        }
+
+        function cancelScoreInput() {
+            document.getElementById('scoreInputPanel').style.display = 'none';
+            document.getElementById('scorerPanel').style.display = 'block';
+            selectedContestantForScore = '';
+        }
+
+        async function saveTheme() {
+            const theme = document.getElementById('competitionTheme').value.trim();
+            try {
+                try {
+                    // 尝试保存到IndexedDB
+                    await storeData('themes', 'current', theme || '🏆 比赛排名');
+                } catch (error) {
+                    // 降级到localStorage
+                    localStorage.setItem('themes', JSON.stringify(theme || '🏆 比赛排名'));
+                }
+                showToast('主题已保存');
+            } catch (error) {
+                console.error('Save theme error:', error);
+                showToast('保存主题失败', 'error');
+            }
+        }
+
+        async function loadSavedTheme() {
+            try {
+                let theme = '🏆 比赛排名';
+                try {
+                    // 尝试从IndexedDB获取
+                    theme = await getData('themes', 'current') || '🏆 比赛排名';
+                } catch (error) {
+                    // 降级到localStorage
+                    theme = JSON.parse(localStorage.getItem('themes') || '🏆 比赛排名');
+                }
+                document.getElementById('competitionTheme').value = theme;
+            } catch (error) {
+                console.error('Load theme error:', error);
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+            if (!confirm('再次确认：所有选手、分数和记录都将被删除！')) return;
+            
+            try {
+                // 清空IndexedDB
+                try {
+                    await storeData('contestants', 'list', []);
+                    await storeData('scores', 'data', {});
+                    await storeData('scorerScores', 'data', {});
+                    await storeData('themes', 'current', '🏆 比赛排名');
+                } catch (error) {
+                    // 降级到localStorage
+                    localStorage.setItem('contestants', JSON.stringify([]));
+                    localStorage.setItem('scores', JSON.stringify({}));
+                    localStorage.setItem('scorerScores', JSON.stringify({}));
+                    localStorage.setItem('themes', JSON.stringify('🏆 比赛排名'));
+                }
+                
+                await updateScorerContestantList();
+                updateAllDisplays();
+                showToast('所有数据已清空', 'warning');
+            } catch (error) {
+                console.error('Clear data error:', error);
+                showToast('清空数据失败', 'error');
+            }
+        }
+
+        // ==================== 名次看板 ====================
+        async function updateLeaderboard() {
+            try {
+                let contestants = [];
+                let scores = {};
+                let scorerScores = {};
+                let theme = '🏆 比赛排名';
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                    scorerScores = await getData('scorerScores', 'data') || {};
+                    theme = await getData('themes', 'current') || '🏆 比赛排名';
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                    theme = JSON.parse(localStorage.getItem('themes') || '🏆 比赛排名');
+                }
+                
+                document.getElementById('leaderboardTheme').textContent = theme;
+                
+                const list = document.getElementById('leaderboardList');
+                list.innerHTML = '';
+                
+                if (contestants.length === 0) {
+                    list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无选手数据</p>';
+                    return;
+                }
+                
+                // 计算每个选手的最终分数
+                const rankings = contestants.map(contestant => {
+                    const contestantScores = scores[contestant] || {};
+                    const scoreValues = Object.values(contestantScores);
+                    const scorerScore = scorerScores[contestant];
+                    
+                    let finalScore = 0;
+                    let status = '等待打分';
+                    let scoreDetails = '';
+                    
+                    if (scoreValues.length > 0) {
+                        // 排序分数
+                        const sortedScores = [...scoreValues].sort((a, b) => a - b);
+                        
+                        // 去掉最高分和最低分
+                        const validScores = sortedScores.slice(1, -1);
+                        
+                        // 计算平均分
+                        const avgScore = validScores.length > 0 
+                            ? validScores.reduce((a, b) => a + b, 0) / validScores.length 
+                            : 0;
+                        
+                        // 加入计分人员分数
+                        finalScore = avgScore + (scorerScore || 0);
+                        status = `${scoreValues.length}/17 评委打分`;
+                        scoreDetails = `评委均分: ${avgScore.toFixed(2)} | 计分: ${scorerScore || 0}`;
+                    }
+                    
+                    return {
+                        name: contestant,
+                        score: finalScore,
+                        status,
+                        scoreDetails,
+                        isComplete: scoreValues.length === 17 && scorerScore !== undefined
+                    };
+                });
+                
+                // 按分数排序
+                rankings.sort((a, b) => b.score - a.score);
+                
+                // 渲染排名
+                rankings.forEach((item, index) => {
+                    const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : '';
+                    
+                    const div = document.createElement('div');
+                    div.className = `leaderboard-item ${rankClass}`;
+                    div.innerHTML = `
+                        <div class="rank ${rankClass}">${index + 1}</div>
+                        <div class="contestant-details">
+                            <div class="contestant-name-large">${item.name}</div>
+                            <div class="score-details">${item.scoreDetails || item.status}</div>
+                        </div>
+                        <div class="final-score">${item.score > 0 ? item.score.toFixed(2) : '--'}</div>
+                    `;
+                    
+                    list.appendChild(div);
+                });
+            } catch (error) {
+                console.error('Update leaderboard error:', error);
+            }
+        }
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            document.getElementById('refreshText').textContent = autoRefreshEnabled ? '自动刷新' : '已暂停';
+            document.getElementById('refreshIcon').textContent = autoRefreshEnabled ? '🔄' : '⏸️';
+            
+            if (autoRefreshEnabled) {
+                refreshInterval = setInterval(() => {
+                    if (document.getElementById('leaderboardPage').classList.contains('active')) {
+                        updateLeaderboard();
+                    }
+                }, 3000);
+            } else {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // ==================== 打分记录 ====================
+        async function updateRecords() {
+            try {
+                let contestants = [];
+                let scores = {};
+                let timeRecords = {};
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                    timeRecords = await getData('timeRecords', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                    timeRecords = JSON.parse(localStorage.getItem('timeRecords') || '{}');
+                }
+            
+            const list = document.getElementById('recordsList');
+            list.innerHTML = '';
+            
+            if (contestants.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">暂无打分记录</p>';
+                return;
+            }
+            
+            contestants.forEach(contestant => {
+                const contestantScores = scores[contestant] || {};
+                const scoreValues = Object.values(contestantScores);
+                const scorerScore = scorerScores[contestant];
+                
+                if (scoreValues.length === 0) return;
+                
+                // 排序分数
+                const sortedScores = [...scoreValues].sort((a, b) => a - b);
+                const maxScore = sortedScores[sortedScores.length - 1];
+                const minScore = sortedScores[0];
+                
+                // 有效分数
+                const validScores = sortedScores.slice(1, -1);
+                const avgScore = validScores.length > 0 
+                    ? validScores.reduce((a, b) => a + b, 0) / validScores.length 
+                    : 0;
+                
+                // 加入计分人员分数
+                const finalScore = avgScore + (scorerScore || 0);
+                
+                // 生成评委分数HTML
+                let judgeScoresHtml = '';
+                Object.entries(contestantScores).forEach(([judge, score]) => {
+                    const scoreClass = score === maxScore ? 'max' : score === minScore ? 'min' : '';
+                    judgeScoresHtml += `
+                        <div class="judge-score-item">
+                            <div class="judge-name">${judge}</div>
+                            <div class="judge-score ${scoreClass}">${score}</div>
+                        </div>
+                    `;
+                });
+                
+                const card = document.createElement('div');
+                card.className = 'record-card';
+                card.innerHTML = `
+                    <div class="record-header">
+                        <div>
+                            <div class="record-contestant">${contestant}</div>
+                            <div class="record-meta">📝 计分: ${scorerScore !== undefined ? scorerScore + '分' : '未记录'}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 2rem; font-weight: bold; color: var(--success-color);">
+                                ${finalScore.toFixed(2)}
+                            </div>
+                            <div style="color: var(--text-secondary);">最终得分</div>
+                        </div>
+                    </div>
+                    
+                    <div class="judge-scores">
+                        ${judgeScoresHtml}
+                    </div>
+                    
+                    <div class="record-summary">
+                        <div class="summary-item">
+                            <div class="summary-label">评委人数</div>
+                            <div class="summary-value">${scoreValues.length}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">最高分</div>
+                            <div class="summary-value" style="color: var(--danger-color);">${maxScore}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">最低分</div>
+                            <div class="summary-value" style="color: var(--success-color);">${minScore}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">基础均分</div>
+                            <div class="summary-value">${avgScore.toFixed(2)}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">计分人员</div>
+                            <div class="summary-value" style="color: var(--primary-color);">${scorerScore || 0}</div>
+                        </div>
+                    </div>
+                `;
+                
+                list.appendChild(card);
+            });
+            } catch (error) {
+                console.error('Update records error:', error);
+            }
+        }
+
+        async function exportRecords() {
+            try {
+                let contestants = [];
+                let scores = {};
+                let timeRecords = {};
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                    timeRecords = await getData('timeRecords', 'data') || {};
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                    timeRecords = JSON.parse(localStorage.getItem('timeRecords') || '{}');
+                }
+            
+            if (contestants.length === 0) {
+                showToast('暂无数据可导出', 'error');
+                return;
+            }
+            
+            let csv = '选手姓名,计分人员,评委数,最高分,最低分,基础均分,最终得分\n';
+            
+            contestants.forEach(contestant => {
+                const contestantScores = scores[contestant] || {};
+                const scoreValues = Object.values(contestantScores);
+                const scorerScore = scorerScores[contestant];
+                
+                if (scoreValues.length === 0) return;
+                
+                const sortedScores = [...scoreValues].sort((a, b) => a - b);
+                const maxScore = sortedScores[sortedScores.length - 1];
+                const minScore = sortedScores[0];
+                const validScores = sortedScores.slice(1, -1);
+                const avgScore = validScores.length > 0 
+                    ? validScores.reduce((a, b) => a + b, 0) / validScores.length 
+                    : 0;
+                
+                const finalScore = avgScore + (scorerScore || 0);
+                
+                csv += `${contestant},${scorerScore || 0},${scoreValues.length},${maxScore},${minScore},${avgScore.toFixed(2)},${finalScore.toFixed(2)}\n`;
+            });
+            
+            // 添加详细打分记录
+            csv += '\n详细打分记录\n';
+            csv += '选手姓名,评委姓名,分数\n';
+            
+            contestants.forEach(contestant => {
+                const contestantScores = scores[contestant] || {};
+                Object.entries(contestantScores).forEach(([judge, score]) => {
+                    csv += `${contestant},${judge},${score}\n`;
+                });
+            });
+            
+            // 下载文件
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `比赛评分记录_${new Date().toLocaleDateString()}.csv`;
+            link.click();
+            
+            showToast('报表已导出');
+            } catch (error) {
+                console.error('Export records error:', error);
+                showToast('导出报表失败', 'error');
+            }
+        }
+
+        // ==================== 二维码功能 ====================
+        function showQRCode(type) {
+            const modal = document.getElementById('qrModal');
+            const qrContainer = document.getElementById('qrCode');
+            const qrDescription = document.getElementById('qrDescription');
+            const qrUrl = document.getElementById('qrUrl');
+            
+            qrContainer.innerHTML = '';
+            
+            // 获取当前URL
+            const url = window.location.href;
+            
+            if (type === 'judge') {
+                qrDescription.textContent = '扫码进入打分通道（评委端）';
+            } else {
+                qrDescription.textContent = '扫码进入打分通道（计分人员端）';
+            }
+            
+            qrUrl.textContent = url;
+            
+            // 使用qrcode.min.js生成二维码
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(qrContainer, {
+                        text: url,
+                        width: 200,
+                        height: 200,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                } catch (error) {
+                    console.error('QRCode generation error:', error);
+                    // 降级处理
+                    qrContainer.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <p style="margin-bottom: 20px;">请使用手机浏览器打开以下链接：</p>
+                            <div style="background: #f5f5f5; color: #333; padding: 15px; border-radius: 10px; word-break: break-all;">
+                                ${url}
+                            </div>
+                            <p style="margin-top: 20px; color: var(--text-secondary);">
+                                或者使用微信/支付宝扫一扫功能
+                            </p>
+                        </div>
+                    `;
+                }
+            } else {
+                // 降级处理
+                qrContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <p style="margin-bottom: 20px;">请使用手机浏览器打开以下链接：</p>
+                        <div style="background: #f5f5f5; color: #333; padding: 15px; border-radius: 10px; word-break: break-all;">
+                            ${url}
+                        </div>
+                        <p style="margin-top: 20px; color: var(--text-secondary);">
+                            或者使用微信/支付宝扫一扫功能
+                        </p>
+                    </div>
+                `;
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').classList.remove('active');
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('qrModal').addEventListener('click', (e) => {
+            if (e.target.id === 'qrModal') {
+                closeQRModal();
+            }
+        });
+
+        // ==================== Toast通知 ====================
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toast.className = 'toast';
+            if (type !== 'success') {
+                toast.classList.add(type);
+            }
+            
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // ==================== 更新所有显示 ====================
+        function updateAllDisplays() {
+            updateScorerContestantList();
+            updateLeaderboard();
+            updateRecords();
+        }
+
+        // 启动自动刷新
+        refreshInterval = setInterval(() => {
+            if (autoRefreshEnabled && document.getElementById('leaderboardPage').classList.contains('active')) {
+                updateLeaderboard();
+            }
+        }, 3000);
+
+        // 键盘事件
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeQRModal();
+                if (document.getElementById('scoreInputPanel').style.display === 'block') {
+                    cancelScoreInput();
+                }
+            }
+        });
+    </script>
+    <script src="qrcode.min.js"></script>
+</body>
+</html>
