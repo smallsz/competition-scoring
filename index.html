@@ -5,6 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>工务机械段比赛评分系统</title>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+      import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-database.js";
+      
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyAReejwyLegpEARmjMtVbwpaaiuyRZ1pB8",
+        authDomain: "competition-scoring-d2cb6.firebaseapp.com",
+        projectId: "competition-scoring-d2cb6",
+        storageBucket: "competition-scoring-d2cb6.firebasestorage.app",
+        messagingSenderId: "179433458220",
+        appId: "1:179433458220:web:22ac000a5807a3f3a8df89",
+        measurementId: "G-7EKSETF083"
+      };
+      
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const database = getDatabase(app);
+      
+      // 全局变量
+      window.firebaseDatabase = database;
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -1144,6 +1169,181 @@
             }
         }
 
+        // ==================== Firebase 数据存储 ====================
+        let firebaseDatabase = null;
+        
+        // 从Firebase读取数据
+        async function fetchDataFromFirebase() {
+            try {
+                if (!window.firebaseDatabase) {
+                    console.error('Firebase database not initialized');
+                    return null;
+                }
+                
+                const dbRef = ref(window.firebaseDatabase, 'competition-scoring');
+                const snapshot = await get(dbRef);
+                
+                if (snapshot.exists()) {
+                    return snapshot.val();
+                }
+                return null;
+            } catch (error) {
+                console.error('Fetch Firebase data error:', error);
+                return null;
+            }
+        }
+        
+        // 向Firebase写入数据
+        async function writeDataToFirebase(data) {
+            try {
+                if (!window.firebaseDatabase) {
+                    console.error('Firebase database not initialized');
+                    return false;
+                }
+                
+                const dbRef = ref(window.firebaseDatabase, 'competition-scoring');
+                await set(dbRef, data);
+                return true;
+            } catch (error) {
+                console.error('Write Firebase data error:', error);
+                return false;
+            }
+        }
+        
+        // 从Firebase同步数据
+        async function syncDataFromFirebase() {
+            try {
+                const data = await fetchDataFromFirebase();
+                if (data) {
+                    // 更新本地存储
+                    try {
+                        // 尝试保存到IndexedDB
+                        if (data.contestants) {
+                            await storeData('contestants', 'list', data.contestants);
+                        }
+                        if (data.scores) {
+                            await storeData('scores', 'data', data.scores);
+                        }
+                        if (data.scorerScores) {
+                            await storeData('scorerScores', 'data', data.scorerScores);
+                        }
+                        if (data.themes) {
+                            await storeData('themes', 'current', data.themes);
+                        }
+                    } catch (error) {
+                        // 降级到localStorage
+                        if (data.contestants) {
+                            localStorage.setItem('contestants', JSON.stringify(data.contestants));
+                        }
+                        if (data.scores) {
+                            localStorage.setItem('scores', JSON.stringify(data.scores));
+                        }
+                        if (data.scorerScores) {
+                            localStorage.setItem('scorerScores', JSON.stringify(data.scorerScores));
+                        }
+                        if (data.themes) {
+                            localStorage.setItem('themes', JSON.stringify(data.themes));
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Sync from Firebase error:', error);
+                return false;
+            }
+        }
+        
+        // 同步数据到Firebase
+        async function syncDataToFirebase() {
+            try {
+                // 收集所有数据
+                let contestants = [];
+                let scores = {};
+                let scorerScores = {};
+                let themes = '🏆 比赛排名';
+                
+                try {
+                    // 尝试从IndexedDB获取
+                    contestants = await getData('contestants', 'list') || [];
+                    scores = await getData('scores', 'data') || {};
+                    scorerScores = await getData('scorerScores', 'data') || {};
+                    themes = await getData('themes', 'current') || '🏆 比赛排名';
+                } catch (error) {
+                    // 降级到localStorage
+                    contestants = JSON.parse(localStorage.getItem('contestants') || '[]');
+                    scores = JSON.parse(localStorage.getItem('scores') || '{}');
+                    scorerScores = JSON.parse(localStorage.getItem('scorerScores') || '{}');
+                    themes = JSON.parse(localStorage.getItem('themes') || '"🏆 比赛排名"');
+                }
+                
+                const allData = {
+                    contestants,
+                    scores,
+                    scorerScores,
+                    themes,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                return await writeDataToFirebase(allData);
+            } catch (error) {
+                console.error('Sync data to Firebase error:', error);
+                return false;
+            }
+        }
+        
+        // 设置Firebase数据变化监听器
+        function setupFirebaseListeners() {
+            try {
+                if (!window.firebaseDatabase) {
+                    console.error('Firebase database not initialized');
+                    return;
+                }
+                
+                const dbRef = ref(window.firebaseDatabase, 'competition-scoring');
+                onValue(dbRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        // 更新本地存储
+                        try {
+                            // 尝试保存到IndexedDB
+                            if (data.contestants) {
+                                storeData('contestants', 'list', data.contestants);
+                            }
+                            if (data.scores) {
+                                storeData('scores', 'data', data.scores);
+                            }
+                            if (data.scorerScores) {
+                                storeData('scorerScores', 'data', data.scorerScores);
+                            }
+                            if (data.themes) {
+                                storeData('themes', 'current', data.themes);
+                            }
+                        } catch (error) {
+                            // 降级到localStorage
+                            if (data.contestants) {
+                                localStorage.setItem('contestants', JSON.stringify(data.contestants));
+                            }
+                            if (data.scores) {
+                                localStorage.setItem('scores', JSON.stringify(data.scores));
+                            }
+                            if (data.scorerScores) {
+                                localStorage.setItem('scorerScores', JSON.stringify(data.scorerScores));
+                            }
+                            if (data.themes) {
+                                localStorage.setItem('themes', JSON.stringify(data.themes));
+                            }
+                        }
+                        
+                        // 刷新显示
+                        updateAllDisplays();
+                    }
+                });
+            } catch (error) {
+                console.error('Setup Firebase listeners error:', error);
+            }
+        }
+        
         // ==================== GitHub Issues 数据存储 ====================
         const GITHUB_REPO = 'smallsz/competition-scoring'; // 替换为您的GitHub仓库
         const GITHUB_ISSUE_NUMBER = 2; // 替换为您创建的Issue编号
@@ -1444,7 +1644,17 @@
             try {
                 await openDatabase();
                 
-                // 尝试从GitHub同步数据
+                // 尝试从Firebase同步数据
+                try {
+                    const synced = await syncDataFromFirebase();
+                    if (synced) {
+                        console.log('Data synced from Firebase');
+                    }
+                } catch (syncError) {
+                    console.error('Firebase sync error during initialization:', syncError);
+                }
+                
+                // 尝试从GitHub同步数据（备用）
                 try {
                     const synced = await syncDataFromGitHub();
                     if (synced) {
@@ -1474,6 +1684,9 @@
                 if (!scorerScores) {
                     await storeData('scorerScores', 'data', {});
                 }
+                
+                // 设置Firebase数据变化监听器
+                setupFirebaseListeners();
             } catch (error) {
                 console.error('Initialization error:', error);
                 // 降级到localStorage
@@ -1749,7 +1962,9 @@
                 // 强制刷新列表
                 setTimeout(async () => {
                     updateJudgeContestantList();
-                    // 同步数据到GitHub
+                    // 同步数据到Firebase
+                    await syncDataToFirebase();
+                    // 同步数据到GitHub（备用）
                     await syncDataToGitHub();
                 }, 100);
             } catch (error) {
@@ -1866,7 +2081,9 @@
                 document.getElementById('newContestantName').value = '';
                 await updateScorerContestantList();
                 
-                // 同步数据到GitHub
+                // 同步数据到Firebase
+                await syncDataToFirebase();
+                // 同步数据到GitHub（备用）
                 await syncDataToGitHub();
                 showToast(`已添加选手：${name}`);
             } catch (error) {
@@ -1923,7 +2140,9 @@
                 
                 await updateScorerContestantList();
                 
-                // 同步数据到GitHub
+                // 同步数据到Firebase
+                await syncDataToFirebase();
+                // 同步数据到GitHub（备用）
                 await syncDataToGitHub();
                 showToast(`已删除选手：${name}`);
             } catch (error) {
@@ -1992,7 +2211,9 @@
                 selectedContestantForScore = '';
                 await updateScorerContestantList();
                 
-                // 同步数据到GitHub
+                // 同步数据到Firebase
+                await syncDataToFirebase();
+                // 同步数据到GitHub（备用）
                 await syncDataToGitHub();
             } catch (error) {
                 console.error('Confirm score error:', error);
@@ -2018,7 +2239,9 @@
                 }
                 showToast('主题已保存');
                 
-                // 同步数据到GitHub
+                // 同步数据到Firebase
+                await syncDataToFirebase();
+                // 同步数据到GitHub（备用）
                 await syncDataToGitHub();
             } catch (error) {
                 console.error('Save theme error:', error);
@@ -2071,7 +2294,9 @@
                 await updateScorerContestantList();
                 updateAllDisplays();
                 
-                // 同步数据到GitHub
+                // 同步数据到Firebase
+                await syncDataToFirebase();
+                // 同步数据到GitHub（备用）
                 await syncDataToGitHub();
                 showToast('所有数据已清空', 'warning');
             } catch (error) {
